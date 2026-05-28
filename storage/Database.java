@@ -7,62 +7,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * ═══════════════════════════════════════════════════════════════════
- *  Instapp — Railway PostgreSQL Database Layer
- * ═══════════════════════════════════════════════════════════════════
- *
- *  TABLES (4 total — fully relational with FK constraints + indexes)
- *
- *  ┌─────────────────────────────────────────────────────────────┐
- *  │  TABLE: users                                               │
- *  │  ─────────────────────────────────────────────────────────  │
- *  │  username    TEXT  PRIMARY KEY                              │
- *  │  password    TEXT  NOT NULL                                 │
- *  └─────────────────────────────────────────────────────────────┘
- *
- *  ┌─────────────────────────────────────────────────────────────┐
- *  │  TABLE: posts                                               │
- *  │  ─────────────────────────────────────────────────────────  │
- *  │  post_id     TEXT    PRIMARY KEY                            │
- *  │  author      TEXT    NOT NULL  → FK → users(username)       │
- *  │  image_url   TEXT    NOT NULL                               │
- *  │  timestamp   BIGINT  NOT NULL  (epoch ms, for feed ranking) │
- *  └─────────────────────────────────────────────────────────────┘
- *
- *  ┌─────────────────────────────────────────────────────────────┐
- *  │  TABLE: follows                                             │
- *  │  ─────────────────────────────────────────────────────────  │
- *  │  follower    TEXT  NOT NULL  → FK → users(username)         │
- *  │  following   TEXT  NOT NULL  → FK → users(username)         │
- *  │  PRIMARY KEY (follower, following) ← no duplicate follows   │
- *  └─────────────────────────────────────────────────────────────┘
- *
- *  ┌─────────────────────────────────────────────────────────────┐
- *  │  TABLE: likes                                               │
- *  │  ─────────────────────────────────────────────────────────  │
- *  │  username    TEXT  NOT NULL  → FK → users(username)         │
- *  │  post_id     TEXT  NOT NULL  → FK → posts(post_id)          │
- *  │  PRIMARY KEY (username, post_id) ← no double-likes          │
- *  └─────────────────────────────────────────────────────────────┘
- *
- *  INDEXES (for fast queries on large data)
- *  ─────────────────────────────────────────────────────────────
- *  idx_posts_author       → posts(author)        fast profile load
- *  idx_posts_timestamp    → posts(timestamp)     fast feed ranking
- *  idx_follows_follower   → follows(follower)    fast following list
- *  idx_follows_following  → follows(following)   fast followers list
- *  idx_likes_post_id      → likes(post_id)       fast like count
- *  idx_likes_username     → likes(username)      fast liked-by-user
- *
- *  CONNECTION
- *  ─────────────────────────────────────────────────────────────
- *  Set env var DATABASE_URL to your Railway PostgreSQL URL:
- *    postgresql://user:pass@host.railway.app:5432/railway
- *
- *  If not set → app runs in in-memory mode (data resets on exit).
- * ═══════════════════════════════════════════════════════════════════
- */
+
 public class Database {
 
     private static Connection conn      = null;
@@ -114,7 +59,8 @@ public class Database {
                 + "&password="       + pass
                 + "&sslmode=require"
                 + "&connectTimeout=10"
-                + "&socketTimeout=30";
+                + "&socketTimeout=30"
+                + "&TimeZone=UTC";
     }
 
     // ── Schema ────────────────────────────────────────────────────────────────
