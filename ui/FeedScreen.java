@@ -19,14 +19,30 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * Feed screen layout (matches Instagram structure):
+ *
+ *  ┌─────────────────────────────────┐  ← fixed TOP
+ *  │  Instapp logo        Logout  │
+ *  ├─────────────────────────────────┤
+ *  │  People You May Know (h-scroll) │  ← fixed, does NOT scroll with feed
+ *  ├─────────────────────────────────┤
+ *  │                                 │
+ *  │   Post card 1  (scrollable)     │  ← CENTER: only this part scrolls
+ *  │   Post card 2                   │
+ *  │   Post card 3  ...              │
+ *  │                                 │
+ *  ├─────────────────────────────────┤
+ *  │  🏠          🔍          👤     │  ← fixed BOTTOM (MainShell nav bar)
+ *  └─────────────────────────────────┘
+ */
 public class FeedScreen {
 
     public static BorderPane build() {
         BorderPane root = new BorderPane();
         root.setStyle(Styles.ROOT_BG);
 
-        
+        // ── Fixed TOP: logo bar + People You May Know strip ──────────────────
         VBox topFixed = new VBox(0);
 
         // Logo bar
@@ -52,7 +68,13 @@ public class FeedScreen {
         VBox postsList = new VBox(0);
         postsList.setStyle(Styles.ROOT_BG);
 
-        
+        // ── Smart feed logic ──────────────────────────────────────────────────
+        // Split all posts into two buckets:
+        //   1. Posts from people the current user follows  → ranked by FeedRanker (Max-Heap)
+        //   2. Posts from everyone else                    → ranked by TrendingTracker (Min-Heap top-K)
+        // New user (no following) → bucket 1 is empty → sees only bucket 2 (trending)
+        // As user follows people  → bucket 1 grows, their posts appear first seamlessly
+
         java.util.Set<String> following = new java.util.HashSet<>(AppState.currentUser.getFollowing());
         String me = AppState.currentUser.getUsername();
 
@@ -103,12 +125,14 @@ public class FeedScreen {
         return root;
     }
 
+    // ── People You May Know — fixed horizontal strip ──────────────────────────
 
     private static HBox buildRecommendStrip() {
         List<String> suggestions = AppState.graph.recommendUsers(
                 AppState.currentUser.getUsername());
 
-        
+        // If BFS returns nothing (new user) → show top-K most followed users
+        // Uses a Min-Heap of size K to find the most followed people efficiently
         if (suggestions.isEmpty()) {
             String me = AppState.currentUser.getUsername();
 
@@ -151,7 +175,7 @@ public class FeedScreen {
         }
 
         // Header label
-        Label hdr = new Label("People you may know");
+        Label hdr = new Label("Suggested for you");
         hdr.setStyle(Styles.SECTION_TITLE + "-fx-font-size:12px;-fx-padding:0 0 6 0;");
 
         // Horizontal scrollable cards
@@ -184,15 +208,26 @@ public class FeedScreen {
     }
 
     private static VBox buildSuggestionCard(String name) {
-        Label avatar = new Label(name.substring(0, 1).toUpperCase());
-        avatar.setStyle(Styles.AVATAR);
-        avatar.setMinSize(46, 46);
-        avatar.setMaxSize(46, 46);
-        avatar.setPrefSize(46, 46);
+        // Avatar — show DP if user has one, else gradient circle with letter
+        javafx.scene.layout.StackPane avatar = new javafx.scene.layout.StackPane();
+        avatar.setMinSize(46, 46); avatar.setMaxSize(46, 46); avatar.setPrefSize(46, 46);
+        avatar.setStyle("-fx-cursor:hand;");
+        avatar.setOnMouseClicked(e -> NavigationController.showOtherProfile(
+                name, NavigationController.Tab.FEED));
+
+        Label initials = new Label(name.substring(0, 1).toUpperCase());
+        initials.setStyle(Styles.AVATAR);
+        initials.setMinSize(46, 46); initials.setMaxSize(46, 46); initials.setPrefSize(46, 46);
+        avatar.getChildren().add(initials);
+
+        models.User sugUser = AppState.userStore.get(name);
+        
 
         Label nameLbl = new Label(name);
-        nameLbl.setStyle(Styles.CAPTION + "-fx-font-size:11px;-fx-text-fill:#262626;");
+        nameLbl.setStyle(Styles.CAPTION + "-fx-font-size:11px;-fx-text-fill:#262626;-fx-cursor:hand;");
         nameLbl.setMaxWidth(82);
+        nameLbl.setOnMouseClicked(e -> NavigationController.showOtherProfile(
+                name, NavigationController.Tab.FEED));
 
         boolean alreadyFollowing = AppState.currentUser.getFollowing().contains(name);
         Button followBtn = new Button(alreadyFollowing ? "Following" : "Follow");
@@ -232,11 +267,14 @@ public class FeedScreen {
         card.setStyle(Styles.CARD);
 
         // Author row
-        Label avatar = new Label(post.getAuthorUsername().substring(0, 1).toUpperCase());
-        avatar.setStyle(Styles.AVATAR);
-        avatar.setMinSize(34, 34);
-        avatar.setMaxSize(34, 34);
-        avatar.setPrefSize(34, 34);
+        Label avatarLbl = new Label(post.getAuthorUsername().substring(0, 1).toUpperCase());
+        avatarLbl.setStyle(Styles.AVATAR);
+        avatarLbl.setMinSize(34, 34);
+        avatarLbl.setMaxSize(34, 34);
+        avatarLbl.setPrefSize(34, 34);
+        StackPane avatar = new StackPane(avatarLbl);
+        avatar.setMinSize(34, 34); avatar.setMaxSize(34, 34); avatar.setPrefSize(34, 34);
+      
 
         Label authorLbl = new Label(post.getAuthorUsername());
         authorLbl.setStyle(
@@ -273,22 +311,7 @@ public class FeedScreen {
         Rectangle clip = new Rectangle(430, 380);
         iv.setClip(clip);
 
-        Thread imgThread = new Thread(() -> {
-            try {
-                File f = new File(post.getImageUrl());
-                if (f.exists()) {
-                    Image img = new Image(f.toURI().toString(), 430, 380, true, true);
-                    Platform.runLater(() -> imgContainer.getChildren().setAll(iv));
-                    iv.setImage(img);
-                } else {
-                    Platform.runLater(() -> loadingLbl.setText("Image not found"));
-                }
-            } catch (Exception ex) {
-                Platform.runLater(() -> loadingLbl.setText("Could not load"));
-            }
-        });
-        imgThread.setDaemon(true);
-        imgThread.start();
+        ImageLoader.load(post, iv, imgContainer, 430, 380);
         card.getChildren().add(imgContainer);
 
         // Like row
@@ -306,12 +329,12 @@ public class FeedScreen {
             if (nowLiked) {
                 Database.saveLike(me, post.getPostId());
                 AppState.currentUser.addLikedPost(post.getPostId());
-                likeBtn.setStyle(Styles.BTN_LIKED);
+                likeBtn.setStyle(Styles.BTN_LIKED + "-fx-font-size:28px;");
                 likeBtn.setText("♥");
             } else {
                 Database.deleteLike(me, post.getPostId());
                 AppState.currentUser.removeLikedPost(post.getPostId());
-                likeBtn.setStyle(Styles.BTN_LIKE);
+                likeBtn.setStyle(Styles.BTN_LIKE + "-fx-font-size:28px;");
                 likeBtn.setText("♡");
             }
             likeCount.setText(post.getLikes() + " likes");
@@ -325,4 +348,7 @@ public class FeedScreen {
 
         return card;
     }
+
+
+
 }

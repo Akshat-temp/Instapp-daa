@@ -15,8 +15,14 @@ import models.Post;
 import storage.Database;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.util.Base64;
 
-
+/**
+ * Upload screen.
+ * Reads image bytes → encodes to Base64 → stores in Railway DB.
+ * Images load on ALL devices since data is in the database.
+ */
 public class UploadScreen {
 
     public static BorderPane build(Stage ownerStage) {
@@ -37,9 +43,9 @@ public class UploadScreen {
         topBar.setStyle(Styles.TOP_BAR);
         root.setTop(topBar);
 
-        // ── Preview area ──────────────────────────────────────────────────────
+        // ── Preview ───────────────────────────────────────────────────────────
         StackPane previewPane = new StackPane();
-        previewPane.setStyle("-fx-background-color: #efefef;");
+        previewPane.setStyle("-fx-background-color:#efefef;");
         previewPane.setPrefHeight(280);
 
         Label previewLbl = new Label("📷  Tap 'Choose Photo' to select an image");
@@ -55,9 +61,10 @@ public class UploadScreen {
         Rectangle clip = new Rectangle(430, 280);
         preview.setClip(clip);
 
-        final String[] chosenPath = {""};
+        // Store chosen file path and its Base64 data
+        final File[]   chosenFile  = { null };
+        final String[] base64Cache = { "" };
 
-        // ── Buttons ───────────────────────────────────────────────────────────
         Label selectedLbl = new Label("No file selected.");
         selectedLbl.setStyle(Styles.CAPTION);
 
@@ -65,6 +72,7 @@ public class UploadScreen {
         msgLbl.setStyle(Styles.ERROR_MSG);
         msgLbl.setWrapText(true);
 
+        // ── Choose button ─────────────────────────────────────────────────────
         Button chooseBtn = new Button("Choose Photo");
         chooseBtn.setStyle(Styles.BTN_SECONDARY);
         chooseBtn.setMaxWidth(Double.MAX_VALUE);
@@ -73,39 +81,58 @@ public class UploadScreen {
             chooser.setTitle("Select a Photo");
             chooser.getExtensionFilters().add(
                     new FileChooser.ExtensionFilter(
-                            "Images", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.webp"));
+                            "Images", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp"));
             File chosen = chooser.showOpenDialog(ownerStage);
-            if (chosen != null) {
-                chosenPath[0] = chosen.getAbsolutePath();
-                selectedLbl.setText(chosen.getName());
+            if (chosen == null) return;
+
+            try {
+                // Read all bytes and encode to Base64
+                byte[] bytes = Files.readAllBytes(chosen.toPath());
+                String b64   = Base64.getEncoder().encodeToString(bytes);
+
+                chosenFile[0]  = chosen;
+                base64Cache[0] = b64;
+
+                selectedLbl.setText(chosen.getName() + " (" + (bytes.length / 1024) + " KB)");
                 selectedLbl.setStyle(Styles.SECTION_TITLE);
-                // Show preview
+
+                // Show preview from original file
                 Image img = new Image(chosen.toURI().toString(), 430, 280, true, true);
                 preview.setImage(img);
                 previewPane.getChildren().setAll(preview);
                 msgLbl.setText("");
+
+            } catch (Exception ex) {
+                msgLbl.setStyle(Styles.ERROR_MSG);
+                msgLbl.setText("Could not read file: " + ex.getMessage());
+                System.err.println("[Upload] Read error: " + ex.getMessage());
             }
         });
 
+        // ── Share button ──────────────────────────────────────────────────────
         Button shareBtn = new Button("Share ✓");
         shareBtn.setStyle(Styles.BTN_PRIMARY);
         shareBtn.setMaxWidth(Double.MAX_VALUE);
         shareBtn.setOnAction(e -> {
-            if (chosenPath[0].isEmpty()) {
+            if (chosenFile[0] == null || base64Cache[0].isEmpty()) {
                 msgLbl.setStyle(Styles.ERROR_MSG);
                 msgLbl.setText("Please choose a photo first.");
                 return;
             }
 
-            // Create and store the post
-            String postId = "P" + AppState.postCounter++;
-            Post newPost = new Post(postId, AppState.currentUser.getUsername(), chosenPath[0]);
+            String postId    = "P" + AppState.postCounter++;
+            String imagePath = chosenFile[0].getAbsolutePath(); // keep original path as reference
+
+            Post newPost = new Post(postId, AppState.currentUser.getUsername(), imagePath);
+            newPost.setImageData(base64Cache[0]); // store Base64 in the post
+
             AppState.postStore.put(postId, newPost);
             AppState.currentUser.addPostId(postId);
-            Database.savePost(newPost);
+            Database.savePost(newPost); // saves both image_url and image_data to Railway
 
             // Reset form
-            chosenPath[0] = "";
+            chosenFile[0]  = null;
+            base64Cache[0] = "";
             selectedLbl.setText("No file selected.");
             selectedLbl.setStyle(Styles.CAPTION);
             previewPane.getChildren().setAll(previewLbl);
@@ -114,7 +141,7 @@ public class UploadScreen {
             msgLbl.setStyle(Styles.SUCCESS_MSG + "-fx-font-size:13px;");
             msgLbl.setText("Posted! ✓");
 
-            // Navigate back to own profile after short delay
+            // Navigate back to profile after short delay
             new Thread(() -> {
                 try { Thread.sleep(800); } catch (InterruptedException ignored) {}
                 javafx.application.Platform.runLater(
@@ -122,12 +149,7 @@ public class UploadScreen {
             }).start();
         });
 
-        VBox body = new VBox(14,
-                previewPane,
-                selectedLbl,
-                chooseBtn,
-                shareBtn,
-                msgLbl);
+        VBox body = new VBox(14, previewPane, selectedLbl, chooseBtn, shareBtn, msgLbl);
         body.setPadding(new Insets(20, 24, 20, 24));
         body.setAlignment(Pos.TOP_CENTER);
         root.setCenter(body);

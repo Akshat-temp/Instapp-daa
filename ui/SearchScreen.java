@@ -10,7 +10,11 @@ import models.AppState;
 
 import java.util.List;
 
-
+/**
+ * Search screen — real-time prefix search using UserTrie.
+ * Typing in the search box instantly shows up to 7 matching users.
+ * Clicking a result opens that user's profile.
+ */
 public class SearchScreen {
 
     public static BorderPane build() {

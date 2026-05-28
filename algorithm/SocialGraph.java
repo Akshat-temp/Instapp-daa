@@ -9,7 +9,13 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
-
+/**
+ * Directed graph modelling the follow relationships between users.
+ * Adjacency list: username → set of users they follow.
+ *
+ * BFS is used to generate "People You May Know" — friends-of-friends
+ * who are not already followed by the current user.
+ */
 public class SocialGraph {
 
     private final Map<String, Set<String>> adj = new HashMap<>();
@@ -36,7 +42,12 @@ public class SocialGraph {
         return adj.getOrDefault(username, new HashSet<>());
     }
 
-    
+    /**
+     * BFS up to depth 2 from the given user.
+     * Returns a list of users who are followed by people the current user follows,
+     * but whom the current user does NOT yet follow (and is not themselves).
+     * Capped at 10 results.
+     */
     public List<String> recommendUsers(String username) {
         Set<String> alreadyFollowing = getFollowing(username);
         Set<String> seen = new HashSet<>();

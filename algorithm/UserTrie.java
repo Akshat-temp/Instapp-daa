@@ -5,18 +5,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+/**
+ * Trie data structure for O(L) prefix-based username search.
+ * Used by the Search screen to return up to 7 matching usernames in real time.
+ */
 public class UserTrie {
 
     private static class TrieNode {
         Map<Character, TrieNode> children = new HashMap<>();
         boolean isEndOfWord = false;
-        String  originalWord = null;  
+        String  originalWord = null;  // stores original-case username
     }
 
     private final TrieNode root = new TrieNode();
 
-    
+    /** Insert a username (stored in lowercase for case-insensitive search). */
     public synchronized void insert(String username) {
         TrieNode cur = root;
         for (char c : username.toLowerCase().toCharArray()) {
@@ -24,10 +27,13 @@ public class UserTrie {
             cur = cur.children.get(c);
         }
         cur.isEndOfWord    = true;
-        cur.originalWord   = username;   
+        cur.originalWord   = username;   // preserve original case
     }
 
-    
+    /**
+     * Return up to 7 usernames that start with the given prefix.
+     * Case-insensitive. O(P + R) where P = prefix length, R = results size.
+     */
     public List<String> searchByPrefix(String prefix) {
         TrieNode cur = root;
         String lp = prefix.toLowerCase();
@@ -50,7 +56,7 @@ public class UserTrie {
         }
     }
 
-    
+    /** Remove a username from the trie. */
     public synchronized void delete(String username) {
         deleteHelper(root, username.toLowerCase(), 0);
     }

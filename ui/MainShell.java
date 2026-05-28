@@ -11,7 +11,17 @@ import javafx.stage.Stage;
 
 import static ui.NavigationController.Tab.*;
 
-
+/**
+ * The persistent application shell shown after login.
+ *
+ * Layout:
+ *   ┌────────────────────────┐
+ *   │      Content Area      │  ← center: swapped per tab
+ *   │                        │
+ *   ├────────────────────────┤
+ *   │   🏠       🔍      👤  │  ← bottom nav (always visible)
+ *   └────────────────────────┘
+ */
 public class MainShell {
 
     private final BorderPane root      = new BorderPane();
@@ -31,7 +41,9 @@ public class MainShell {
 
     public BorderPane getRoot() { return root; }
 
+    // ── Public API ────────────────────────────────────────────────────────────
 
+    /** Switch to tab and rebuild its content. */
     public void refresh(NavigationController.Tab tab) {
         activeTab = tab;
         updateHighlight();
@@ -62,7 +74,7 @@ public class MainShell {
         root.setCenter(FollowListScreen.build(users, title, returnTo));
     }
 
-   
+    // ── Nav bar ───────────────────────────────────────────────────────────────
 
     private HBox buildNavBar() {
         btnFeed.setOnAction(e    -> NavigationController.showTab(FEED));

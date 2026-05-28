@@ -3,7 +3,13 @@ package ui;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
-
+/**
+ * Central navigation controller.
+ *
+ * Two scene contexts:
+ *   AUTH  — Login / Signup  (app opens here, no bottom nav)
+ *   APP   — Feed / Search / Profile / Upload  (MainShell with bottom nav)
+ */
 public class NavigationController {
 
     private static Stage     stage;
@@ -66,6 +72,8 @@ public class NavigationController {
         stage.setScene(authScene);
         authScene.setRoot(AuthScreens.buildLogin());
     }
+
+    // ── Tab enum ──────────────────────────────────────────────────────────────
 
     public enum Tab { FEED, SEARCH, PROFILE }
 }

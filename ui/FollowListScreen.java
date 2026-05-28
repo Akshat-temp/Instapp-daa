@@ -9,10 +9,17 @@ import models.AppState;
 
 import java.util.List;
 
-
+/**
+ * Reusable screen that shows a list of users (followers OR following).
+ * Clicking any row opens that user's profile — same behaviour as Search.
+ */
 public class FollowListScreen {
 
-    
+    /**
+     * @param usernames list of usernames to display
+     * @param title     "Followers" or "Following"
+     * @param returnTo  which tab to go back to after closing this screen
+     */
     public static BorderPane build(List<String> usernames, String title,
                                    NavigationController.Tab returnTo) {
         BorderPane root = new BorderPane();

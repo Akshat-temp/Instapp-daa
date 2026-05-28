@@ -9,21 +9,29 @@ import models.AppState;
 import models.User;
 import storage.Database;
 
-
+/**
+ * AuthScreens — all pre-login screens in one file.
+ *
+ *   AuthScreens.buildLogin()   →  main login page (app opens here)
+ *   AuthScreens.buildSignup()  →  registration form
+ */
 public class AuthScreens {
 
-    
+    // ════════════════════════════════════════════════════════════════
+    //  LOGIN SCREEN  (app opens here — styled like Instagram)
+    // ════════════════════════════════════════════════════════════════
+
     public static BorderPane buildLogin() {
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: white;");
 
-        
+        // ── Centre content ────────────────────────────────────────────────────
         VBox center = new VBox();
         center.setAlignment(Pos.CENTER);
         center.setPadding(new Insets(60, 40, 20, 40));
         center.setSpacing(0);
 
-        
+        // Logo
         Label logo = new Label("Instapp");
         logo.setStyle(
             "-fx-font-size: 52px;" +
@@ -77,7 +85,7 @@ public class AuthScreens {
         passRow.setAlignment(Pos.CENTER_RIGHT);
         passRow.getChildren().addAll(passField, passVisible, eyeBtn);
 
-        
+        // Forgot password (right-aligned)
         Label forgot = new Label("Forgot password?");
         forgot.setStyle(
             "-fx-text-fill: #3897f0;" +
@@ -87,12 +95,13 @@ public class AuthScreens {
         forgot.setMaxWidth(Double.MAX_VALUE);
         forgot.setAlignment(Pos.CENTER_RIGHT);
 
-        
+        // Error message
         Label msg = new Label();
         msg.setStyle("-fx-text-fill: #ed4956; -fx-font-size: 12px;");
         msg.setWrapText(true);
         msg.setTextAlignment(TextAlignment.CENTER);
 
+        // Log In button
         Button loginBtn = new Button("Log In");
         loginBtn.setStyle(
             "-fx-background-color: #4fb3f6;" +
@@ -141,7 +150,7 @@ public class AuthScreens {
         signupLink.setOnAction(e -> NavigationController.showSignup());
         signupRow.getChildren().addAll(noAcc, signupLink);
 
-       
+        // Assemble center VBox
         center.getChildren().addAll(
             logo,
             userField,  gap(10),
@@ -155,7 +164,7 @@ public class AuthScreens {
 
         root.setCenter(center);
 
-        
+        // ── Bottom "from GEHU" ────────────────────────────────────────────────
         Label fromGehu = new Label("from GEHU");
         fromGehu.setStyle(
             "-fx-text-fill: #c7c7c7;" +
@@ -170,7 +179,10 @@ public class AuthScreens {
         return root;
     }
 
-    
+    // ════════════════════════════════════════════════════════════════
+    //  SIGN UP SCREEN
+    // ════════════════════════════════════════════════════════════════
+
     public static BorderPane buildSignup() {
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: white;");
@@ -256,14 +268,14 @@ public class AuthScreens {
             Database.saveUser(newUser);
 
             userField.clear(); passField.clear(); confirmField.clear();
-            
+            // Auto-redirect to login after short delay
             new Thread(() -> {
                 try { Thread.sleep(800); } catch (InterruptedException ignored) {}
                 javafx.application.Platform.runLater(() -> NavigationController.showLogin());
             }).start();
         });
 
-      
+        // Already have an account row
         HBox orRow = buildOrDivider();
 
         HBox loginRow = new HBox(4);
@@ -309,7 +321,7 @@ public class AuthScreens {
         return root;
     }
 
-    
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static String inputStyle() {
         return

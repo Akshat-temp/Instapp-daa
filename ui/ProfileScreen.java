@@ -18,7 +18,14 @@ import storage.Database;
 import java.io.File;
 import java.util.List;
 
-
+/**
+ * Profile screen — two modes:
+ *   buildOwn()   — current user's own profile (shows Upload button)
+ *   buildOther() — read-only view of another user (shows Follow / Unfollow)
+ *
+ * Displays: avatar, username, post / follower / following counts,
+ * and a vertical list of the user's posts with thumbnail images.
+ */
 public class ProfileScreen {
 
     // ── Own profile ───────────────────────────────────────────────────────────
@@ -109,46 +116,33 @@ public class ProfileScreen {
     // ── Profile header row (avatar, stats, follow/upload button) ─────────────
 
     private static VBox buildHeaderRow(User target, boolean isOwn) {
-        // Large avatar circle — shows DP image if set, else initial letter
-        javafx.scene.layout.StackPane avatarStack = new javafx.scene.layout.StackPane();
-        avatarStack.setMinSize(80, 80);
-        avatarStack.setMaxSize(80, 80);
-        avatarStack.setPrefSize(80, 80);
-
+        // Large avatar circle
         Label avatar = new Label(target.getUsername().substring(0, 1).toUpperCase());
         avatar.setStyle(Styles.AVATAR_LARGE);
         avatar.setMinSize(80, 80);
         avatar.setMaxSize(80, 80);
         avatar.setPrefSize(80, 80);
 
-        // Show DP image if user has one
-        if (target.hasDp()) {
-            try {
-                javafx.scene.image.Image dpImg = new javafx.scene.image.Image(
-                    new java.io.File(target.getDpPath()).toURI().toString(), 80, 80, true, true);
-                javafx.scene.image.ImageView dpView = new javafx.scene.image.ImageView(dpImg);
-                dpView.setFitWidth(80); dpView.setFitHeight(80);
-                javafx.scene.shape.Circle clip = new javafx.scene.shape.Circle(40, 40, 40);
-                dpView.setClip(clip);
-                avatarStack.getChildren().add(dpView);
-            } catch (Exception ignored) {
-                avatarStack.getChildren().add(avatar);
-            }
-        } else {
-            avatarStack.getChildren().add(avatar);
-        }
+        // Wrap in StackPane for camera button overlay
+        javafx.scene.layout.StackPane avatarStack = new javafx.scene.layout.StackPane(avatar);
+        avatarStack.setMinSize(80, 80);
+        avatarStack.setMaxSize(80, 80);
+        avatarStack.setPrefSize(80, 80);
 
-        // Camera button — bottom-right of avatar, only on own profile
+        // Load profile picture if one exists — replaces the initials label
+        DpLoader.load(target, avatarStack, 80);
+
+        // Camera button — only on own profile
         if (isOwn) {
             javafx.scene.control.Button camBtn = new javafx.scene.control.Button("📷");
             camBtn.setStyle(
-                "-fx-background-color: white;" +
-                "-fx-border-color: #dbdbdb;" +
-                "-fx-border-radius: 50;" +
-                "-fx-background-radius: 50;" +
-                "-fx-font-size: 11px;" +
-                "-fx-cursor: hand;" +
-                "-fx-padding: 3 4 3 4;"
+                "-fx-background-color:white;" +
+                "-fx-border-color:#dbdbdb;" +
+                "-fx-border-radius:50;" +
+                "-fx-background-radius:50;" +
+                "-fx-font-size:11px;" +
+                "-fx-cursor:hand;" +
+                "-fx-padding:3 4 3 4;"
             );
             camBtn.setOnAction(e -> {
                 javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
@@ -156,10 +150,17 @@ public class ProfileScreen {
                 chooser.getExtensionFilters().add(
                     new javafx.stage.FileChooser.ExtensionFilter(
                         "Images", "*.jpg","*.jpeg","*.png","*.gif","*.bmp"));
-                java.io.File chosen = chooser.showOpenDialog(null);
+                java.io.File chosen = chooser.showOpenDialog(avatar.getScene().getWindow());
                 if (chosen != null) {
-                    target.setDpPath(chosen.getAbsolutePath());
-                    // Refresh profile to show new DP
+                    try {
+                        byte[] bytes = java.nio.file.Files.readAllBytes(chosen.toPath());
+                        String b64   = java.util.Base64.getEncoder().encodeToString(bytes);
+                        target.setDpPath(chosen.getAbsolutePath());
+                        target.setDpData(b64);
+                        storage.Database.saveUserDp(target.getUsername(), b64);
+                    } catch (Exception ex) {
+                        System.err.println("[DP] " + ex.getMessage());
+                    }
                     NavigationController.showTab(NavigationController.Tab.PROFILE);
                 }
             });
@@ -253,80 +254,120 @@ public class ProfileScreen {
         return header;
     }
 
-    // ── Posts list ────────────────────────────────────────────────────────────
+    // ── Posts grid (Instagram style — 3 per row) ─────────────────────────────
 
     private static VBox buildPostsList(User target) {
-        VBox list = new VBox(0);
-        list.setStyle(Styles.ROOT_BG);
+        VBox container = new VBox(0);
+        container.setStyle(Styles.ROOT_BG);
 
         List<String> ids = target.getPostIds();
         if (ids.isEmpty()) {
             Label empty = new Label("No posts yet.");
             empty.setStyle(Styles.CAPTION + "-fx-font-size:14px;");
             VBox.setMargin(empty, new Insets(40, 0, 0, 0));
-            list.setAlignment(Pos.CENTER);
-            list.getChildren().add(empty);
-            return list;
+            container.setAlignment(Pos.TOP_CENTER);
+            container.getChildren().add(empty);
+            return container;
         }
 
-        // Show posts newest-first (reverse the list)
+        // 3 columns, each ~140px wide with 1px gaps
+        double cellSize = 140;
+        HBox currentRow = null;
+
         for (int i = ids.size() - 1; i >= 0; i--) {
             Post p = AppState.postStore.get(ids.get(i));
             if (p == null) continue;
-            list.getChildren().add(buildMiniPostCard(p));
+
+            int col = (ids.size() - 1 - i) % 3;
+            if (col == 0) {
+                currentRow = new HBox(1);
+                currentRow.setStyle("-fx-background-color:#dbdbdb;");
+                container.getChildren().add(currentRow);
+            }
+
+            StackPane cell = buildGridCell(p, cellSize);
+            currentRow.getChildren().add(cell);
         }
-        return list;
+
+        return container;
     }
 
-    private static VBox buildMiniPostCard(Post post) {
-        VBox card = new VBox(0);
-        card.setStyle(Styles.CARD + "-fx-background-color:white;");
-
-        // Thumbnail image
-        StackPane imgPane = new StackPane();
-        imgPane.setStyle("-fx-background-color:#efefef;");
-        imgPane.setPrefHeight(200);
+    private static StackPane buildGridCell(Post post, double size) {
+        StackPane cell = new StackPane();
+        cell.setPrefSize(size, size);
+        cell.setMinSize(size, size);
+        cell.setMaxSize(size, size);
+        cell.setStyle("-fx-background-color:#efefef;-fx-cursor:hand;");
 
         Label placeholder = new Label("📷");
-        placeholder.setStyle("-fx-font-size:28px;");
-        imgPane.getChildren().add(placeholder);
+        placeholder.setStyle("-fx-font-size:22px;");
+        cell.getChildren().add(placeholder);
 
         ImageView iv = new ImageView();
-        iv.setFitWidth(430);
-        iv.setFitHeight(200);
-        iv.setPreserveRatio(true);
-        Rectangle clip = new Rectangle(430, 200);
+        iv.setFitWidth(size);
+        iv.setFitHeight(size);
+        iv.setPreserveRatio(false);
+        Rectangle clip = new Rectangle(size, size);
         iv.setClip(clip);
 
-        new Thread(() -> {
-            try {
-                File f = new File(post.getImageUrl());
-                if (f.exists()) {
-                    Image img = new Image(f.toURI().toString(), 430, 200, true, true);
-                    Platform.runLater(() -> {
-                        iv.setImage(img);
-                        imgPane.getChildren().setAll(iv);
-                    });
-                }
-            } catch (Exception ignored) {}
-        }, "img-loader").start();
+        ImageLoader.load(post, iv, cell, size, size);
 
-        // Like info row
+        // Click to enlarge in a popup dialog
+        cell.setOnMouseClicked(e -> showEnlargedPost(post));
+
+        return cell;
+    }
+
+    private static void showEnlargedPost(Post post) {
+        javafx.stage.Stage dialog = new javafx.stage.Stage();
+        dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        dialog.setTitle("Post");
+        dialog.setWidth(430);
+        dialog.setResizable(false);
+
+        VBox box = new VBox(0);
+        box.setStyle("-fx-background-color:white;");
+
+        // Author row
+        Label avatar = new Label(post.getAuthorUsername().substring(0, 1).toUpperCase());
+        avatar.setStyle(Styles.AVATAR);
+        avatar.setMinSize(34, 34); avatar.setMaxSize(34, 34); avatar.setPrefSize(34, 34);
+        Label authorLbl = new Label(post.getAuthorUsername());
+        authorLbl.setStyle("-fx-font-size:13px;-fx-font-weight:bold;-fx-text-fill:#262626;");
+        HBox authorRow = new HBox(10, avatar, authorLbl);
+        authorRow.setAlignment(Pos.CENTER_LEFT);
+        authorRow.setPadding(new Insets(10, 14, 10, 14));
+
+        // Full image
+        StackPane imgPane = new StackPane();
+        imgPane.setPrefHeight(380);
+        imgPane.setStyle("-fx-background-color:#efefef;");
+        Label loading = new Label("📷"); loading.setStyle("-fx-font-size:32px;");
+        imgPane.getChildren().add(loading);
+
+        ImageView iv = new ImageView();
+        iv.setFitWidth(430); iv.setFitHeight(380);
+        iv.setPreserveRatio(true);
+
+        ImageLoader.load(post, iv, imgPane, 430, 380);
+
+        // Likes row
         boolean liked = post.isLikedBy(AppState.currentUser.getUsername());
         Label likeLbl = new Label((liked ? "♥ " : "♡ ") + post.getLikes() + " likes");
-        likeLbl.setStyle((liked ? "-fx-text-fill:" + Styles.C_RED + ";" : Styles.CAPTION)
-                + "-fx-font-size:13px;-fx-font-weight:bold;");
-        likeLbl.setPadding(new Insets(8, 14, 8, 14));
-        likeLbl.setStyle(likeLbl.getStyle() + "-fx-background-color:white;");
+        likeLbl.setStyle("-fx-font-size:13px;-fx-font-weight:bold;-fx-text-fill:#262626;-fx-padding:8 14 8 14;");
 
-        card.getChildren().addAll(imgPane, likeLbl);
-        return card;
+        box.getChildren().addAll(authorRow, imgPane, likeLbl);
+        dialog.setScene(new javafx.scene.Scene(box));
+        dialog.show();
     }
 
     // ── Open upload screen inside the shell ───────────────────────────────────
 
     private static void openUploadInShell() {
-        
+        // We push UploadScreen into the shell center by reaching through the
+        // NavigationController.  UploadScreen calls back to PROFILE on success.
+        // The upload uses a custom "UPLOAD" pseudo-tab via the shell.
+        // Because MainShell.refresh() handles only 3 tabs, we call it directly:
         NavigationController.showUpload();
     }
 
@@ -350,4 +391,15 @@ public class ProfileScreen {
         l.setStyle(Styles.STAT_LBL);
         return l;
     }
+
+    /** Resolves both relative (images/x.jpg) and absolute paths to a File. */
+    private static java.io.File resolveImage(String path) {
+        java.io.File f = new java.io.File(path);
+        if (f.exists()) return f;
+        // Try relative to working directory
+        java.io.File rel = new java.io.File(System.getProperty("user.dir"), path);
+        if (rel.exists()) return rel;
+        return f; // return original, will show placeholder
+    }
+
 }

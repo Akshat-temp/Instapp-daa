@@ -1,6 +1,10 @@
 package ui;
 
-
+/**
+ * Shared design tokens for the Instapp JavaFX UI.
+ * All colours and inline-CSS strings are defined here so that
+ * every screen stays visually consistent.
+ */
 public final class Styles {
 
     private Styles() {}

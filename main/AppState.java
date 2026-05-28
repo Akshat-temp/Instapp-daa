@@ -1,7 +1,6 @@
-package models;
+package main;
 
 import algorithm.FeedRanker;
-import algorithm.TrendingTracker;
 import algorithm.SocialGraph;
 import algorithm.UserTrie;
 import models.Post;
@@ -26,8 +25,7 @@ public class AppState {
     public static int postCounter = 1;
 
     // ── Algorithm instances ──────────────────────────────────────────────────
-    public static final UserTrie        trie     = new UserTrie();
-    public static final TrendingTracker trending = new TrendingTracker();
+    public static final UserTrie    trie    = new UserTrie();
     public static final SocialGraph graph   = new SocialGraph();
     public static final FeedRanker  ranker  = new FeedRanker();
 
