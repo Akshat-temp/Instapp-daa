@@ -221,7 +221,8 @@ public class FeedScreen {
         avatar.getChildren().add(initials);
 
         models.User sugUser = AppState.userStore.get(name);
-        
+        if (sugUser != null) DpLoader.load(sugUser, avatar, 46);
+
 
         Label nameLbl = new Label(name);
         nameLbl.setStyle(Styles.CAPTION + "-fx-font-size:11px;-fx-text-fill:#262626;-fx-cursor:hand;");
@@ -274,7 +275,9 @@ public class FeedScreen {
         avatarLbl.setPrefSize(34, 34);
         StackPane avatar = new StackPane(avatarLbl);
         avatar.setMinSize(34, 34); avatar.setMaxSize(34, 34); avatar.setPrefSize(34, 34);
-      
+        models.User postAuthor = AppState.userStore.get(post.getAuthorUsername());
+        if (postAuthor != null) DpLoader.load(postAuthor, avatar, 34);
+
 
         Label authorLbl = new Label(post.getAuthorUsername());
         authorLbl.setStyle(
