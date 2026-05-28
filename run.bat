@@ -31,5 +31,5 @@ if errorlevel 1 (
 )
 
 echo [2/2] Running Instapp...
-java %MP% -cp %CP% -Duser.timezone=UTC -Dprism.order=sw main.Main
+java %MP% -cp %CP% --enable-native-access=javafx.graphics,javafx.media -Duser.timezone=UTC -Dprism.order=sw -Djavafx.verbose=false -Djava.util.logging.config.file=NUL main.Main
 pause
