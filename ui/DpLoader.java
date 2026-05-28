@@ -51,9 +51,9 @@ public class DpLoader {
 
                 if (raw == null) return; // no DP available — keep initials
 
-                // 3. Crop to square from centre, then scale to circle diameter
+                // 3. Crop to square then scale at 2x for sharpness
                 BufferedImage cropped = cropToSquare(raw);
-                int size = (int) diameter;
+                int size = (int)(diameter * 2); // 2x supersampling
                 BufferedImage scaled  = scale(cropped, size, size);
 
                 // 4. Convert to JavaFX WritableImage
@@ -61,16 +61,15 @@ public class DpLoader {
 
                 Platform.runLater(() -> {
                     ImageView iv = new ImageView(fxImg);
-                    iv.setFitWidth(diameter);
+                    iv.setFitWidth(diameter);   // display at actual size
                     iv.setFitHeight(diameter);
                     iv.setPreserveRatio(false);
                     iv.setSmooth(true);
 
-                    // Circular clip so the image fits the round avatar
+                    // Circular clip
                     Circle clip = new Circle(diameter / 2, diameter / 2, diameter / 2);
                     iv.setClip(clip);
 
-                    // Replace all children (the initials Label) with the image
                     container.getChildren().setAll(iv);
                 });
 

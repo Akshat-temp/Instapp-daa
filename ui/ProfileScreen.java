@@ -173,17 +173,20 @@ public class ProfileScreen {
         VBox followersBox = statBox(String.valueOf(target.getFollowerCount()),  "Followers");
         VBox followingBox = statBox(String.valueOf(target.getFollowingCount()), "Following");
 
-        if (isOwn) {
-            followersBox.setStyle("-fx-cursor:hand;");
-            followersBox.setOnMouseClicked(e -> NavigationController.showFollowList(
-                    new java.util.ArrayList<>(target.getFollowers()), "Followers",
-                    NavigationController.Tab.PROFILE));
+        // Followers/Following clickable on ALL profiles
+        NavigationController.Tab listReturnTo = isOwn
+                ? NavigationController.Tab.PROFILE
+                : NavigationController.Tab.SEARCH;
 
-            followingBox.setStyle("-fx-cursor:hand;");
-            followingBox.setOnMouseClicked(e -> NavigationController.showFollowList(
-                    new java.util.ArrayList<>(target.getFollowing()), "Following",
-                    NavigationController.Tab.PROFILE));
-        }
+        followersBox.setStyle("-fx-cursor:hand;");
+        followersBox.setOnMouseClicked(e -> NavigationController.showFollowList(
+                new java.util.ArrayList<>(target.getFollowers()), "Followers",
+                listReturnTo));
+
+        followingBox.setStyle("-fx-cursor:hand;");
+        followingBox.setOnMouseClicked(e -> NavigationController.showFollowList(
+                new java.util.ArrayList<>(target.getFollowing()), "Following",
+                listReturnTo));
 
         HBox stats = new HBox(0, postsBox, followersBox, followingBox);
         stats.setAlignment(Pos.CENTER);
