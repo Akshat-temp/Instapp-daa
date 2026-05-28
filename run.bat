@@ -16,7 +16,7 @@ set JAVAFX_PATH=%~dp0lib
 set PG_JAR=C:\postgresql-42.7.3.jar
 
 REM ── Optional: set your Railway DATABASE_URL here ──────────────────
-REM set DATABASE_URL=postgresql://user:pass@host.railway.app:5432/dbname
+REM set DATABASE_URL=postgresql://postgres:OrvCfacYtBUwfQgPjuttoSjPvRTUPERB@zephyr.proxy.rlwy.net:45601/railway
 
 set MODS=javafx.controls,javafx.graphics,javafx.base
 set MP=--module-path "%JAVAFX_PATH%" --add-modules %MODS%
